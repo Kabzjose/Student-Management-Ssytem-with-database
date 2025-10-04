@@ -1,13 +1,21 @@
+const apiURL="http://localhost:5000/students";
+
 let input1 = document.getElementById("admno");
 let input2 = document.getElementById("name");
 let input3 = document.getElementById("score");
 let button = document.getElementById("btn");
 
-let students = JSON.parse(localStorage.getItem("students")) || [];
-
+ let students=[]
+let editingIndex=null
+async function loadStudents() {
+  const res =await fetch(apiURL)
+  const students=await res.json()
+  renderStudents()
+}
+loadStudents()
 //addding students
 
-function addStudent() {
+async function addStudent() {
   if (
     input1.value.trim() === "" ||
     input2.value.trim() === "" ||
@@ -36,17 +44,43 @@ function addStudent() {
     alert("Score must be between 0 and 100.");
     return;
   }
+  const studentData={admno:admission,name,score}
+  if(editingIndex===null){
+    //add new student
+   await fetch(apiURL,{
+   method:"POST",
+   headers:{"content-Type":"application/json"},
+   body:JSON.stringify(newStudent)
+    
+  
+})
+  }else{
+   // ✏️ Update existing student
+    await fetch(`${apiURL}/${students[editingIndex].admno}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(studentData)
+      
+    });
+    input1.disabled = false;
 
-  students.push({
-    admno: input1.value,
-    name: input2.value,
-    score: input3.value,
-  });
-  localStorage.setItem("students", JSON.stringify(students));
+    editingIndex = null;
+    button.innerText = "Add Student";
+  }
+
+
+  //send data to backend
+  const newStudent={
+    admno:admission,
+    name,
+    score
+  }
+
+  
   input1.value = "";
   input2.value = "";
   input3.value = "";
-  renderStudents();
+  loadStudents(); //reload table
 }
 
 button.addEventListener("click", addStudent);
@@ -76,24 +110,34 @@ function renderStudents() {
     let actiontd = document.createElement("td");
     let deletebtn = document.createElement("button");
     deletebtn.innerText = "Delete";
-    deletebtn.addEventListener("click", () => {
-      let confirmation = confirm(
-        `Are you sure you want to delete ${student.name}?`
-      ); //Confirm before deleting aa student
-      if (confirmation) {
-        students.splice(index, 1); //remove from array
-        localStorage.setItem("students", JSON.stringify(students)); //update storage
-        renderStudents(); //refresh table
-      }
-    });
-    actiontd.append(deletebtn);
+    deletebtn.addEventListener("click", async () => {
+      //Confirm before deleting student
+  if (confirm(`Are you sure you want to delete ${student.name}?`)) {
+    await fetch(`${apiURL}/${student.name}`, { method: "DELETE" });
+    loadStudents(); // refresh
+  }
+});
+let editbtn = document.createElement("button");
+editbtn.innerText = "Edit";
+editbtn.addEventListener("click", () => {
+  input1.value = student.admno;
+  input2.value = student.name;
+  input3.value = student.score;
+  input1.disabled=true;
+  editingIndex = index;
+  button.innerText = "Update Student";
+});
+actiontd.append(deletebtn,editbtn);
+
+
+   
     tr.appendChild(actiontd);
 
     //add row to table
     tbody.appendChild(tr);
   });
 }
-renderStudents();
+loadStudents();
 
 document.addEventListener("keydown", (e) => {
   //when you press enter the addStudent() executes
